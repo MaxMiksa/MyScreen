@@ -60,6 +60,8 @@ type Controller struct {
 	accumulator                  accumulator
 	epoch, accumulatorEpoch      uint64
 	masks                        map[string]uintptr
+	maskOrderHook, maskDesktop   uintptr
+	maskOrderDirty               bool
 	feedback                     Feedback
 	feedbackScale                float64
 	feedbackVisible              bool
@@ -158,6 +160,10 @@ func (c *Controller) run(ready chan<- error) {
 			}
 			translateMessage.Call(uintptr(unsafe.Pointer(&msg)))
 			dispatchMessage.Call(uintptr(unsafe.Pointer(&msg)))
+		}
+		if c.maskOrderDirty {
+			c.maskOrderDirty = false
+			c.report(c.restoreMaskOrder())
 		}
 	}
 	c.closing.Store(true)
@@ -416,7 +422,7 @@ func (c *Controller) Close() error {
 
 func (c *Controller) cleanup() error {
 	var result error
-	result = errors.Join(result, c.removeHook(), c.keyboard.remove())
+	result = errors.Join(result, c.removeHook(), c.keyboard.remove(), c.stopMaskOrderWatch())
 	c.hideFeedback()
 	killTimer.Call(c.window, scopeTimer)
 	for _, h := range c.masks {
@@ -473,6 +479,7 @@ func (c *Controller) checkScope() {
 		for _, h := range c.masks {
 			showWindow.Call(h, 0)
 		}
+		c.report(c.stopMaskOrderWatch())
 		return
 	}
 	c.refreshDisplays()
@@ -518,5 +525,8 @@ func (c *Controller) acceptDisplays(displays []Display) {
 		} else {
 			delete(c.masks, name)
 		}
+	}
+	if len(c.masks) == 0 {
+		c.report(c.stopMaskOrderWatch())
 	}
 }

@@ -288,7 +288,10 @@ func (c *Controller) SetMasks(masks []Mask) error {
 		if err := c.updateScopeTimer(); err != nil {
 			return errors.Join(err, c.clearMasks())
 		}
-		return nil
+		if len(c.masks) == 0 {
+			return c.stopMaskOrderWatch()
+		}
+		return c.startMaskOrderWatch()
 	})
 }
 func (c *Controller) clearMasks() error {
@@ -301,5 +304,5 @@ func (c *Controller) clearMasks() error {
 		}
 	}
 	c.stopScopeIfIdle()
-	return result
+	return errors.Join(result, c.stopMaskOrderWatch())
 }
