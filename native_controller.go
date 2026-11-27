@@ -418,34 +418,7 @@ func (n *NativeBackend) tick() error {
 	if check {
 		n.lastColorCheck = now
 	}
-	err = n.apply(check)
-	if n.desktop != nil {
-		masks := []desktop.Mask{}
-		if n.settings.FocusEnabled && !n.paused {
-			if now.Sub(n.lastDesktopAt) >= 250*time.Millisecond {
-				state, captureErr := n.desktop.CaptureDesktopState()
-				if !n.acceptFocusCapture(state, captureErr, now) {
-					return errors.Join(err, n.desktop.SetMasks(nil))
-				}
-			}
-			state := n.lastDesktop
-			for _, d := range n.worker.Displays {
-				bounds := d.Bounds
-				on := state.X >= bounds.Left && state.X < bounds.Right && state.Y >= bounds.Top && state.Y < bounds.Bottom
-				focus, dim := domain.EvaluateFocus(n.settings, n.focus[d.Id], domain.FocusInput{DisplayId: d.Id, Paused: n.paused, IsPrimary: d.Primary, CursorOnDisplay: on, HasFullscreenWindow: state.Occupied[d.GDI], NowMillis: time.Since(n.started).Milliseconds()})
-				n.focus[d.Id] = focus
-				if dim {
-					masks = append(masks, desktop.Mask{Display: d.GDI, Bounds: desktop.Rect{Left: bounds.Left, Top: bounds.Top, Right: bounds.Right, Bottom: bounds.Bottom}, Opacity: .999})
-				}
-			}
-		} else {
-			n.focus = map[string]domain.FocusState{}
-			n.lastDesktopAt = time.Time{}
-			n.focusCaptureErr = ""
-		}
-		err = errors.Join(err, n.desktop.SetMasks(masks))
-	}
-	return err
+	return errors.Join(n.tickFocus(time.Now()), n.apply(check))
 }
 func (n *NativeBackend) snapshotStates() []domain.DisplayState {
 	states := []domain.DisplayState{}
@@ -475,7 +448,11 @@ func (n *NativeBackend) snapshot() (map[string]any, error) {
 		warning = &copy
 	}
 	language := "zh-CN"
-	data, err := json.Marshal(domain.Snapshot{Displays: n.snapshotStates(), Settings: n.settings, FocusPaused: n.paused, Source: n.source, Warning: warning, SystemLanguage: &language, SolarTimes: n.schedule.Solar.Today(n.settings.SolarLocation, time.Now())})
+	data, err := json.Marshal(domain.Snapshot{
+		Displays: n.snapshotStates(), Settings: n.settings, FocusPaused: n.paused,
+		FocusPausedByComputerUse: n.settings.FocusEnabled && !n.paused && !n.lastComputerUse.IsZero(),
+		Source:                   n.source, Warning: warning, SystemLanguage: &language, SolarTimes: n.schedule.Solar.Today(n.settings.SolarLocation, time.Now()),
+	})
 	if err != nil {
 		return nil, err
 	}

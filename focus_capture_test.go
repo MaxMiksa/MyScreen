@@ -10,6 +10,32 @@ import (
 	"myscreen/internal/domain"
 )
 
+func TestComputerUsePausesFocusUntilIndicatorStaysGone(t *testing.T) {
+	now := time.Now()
+	left := int64(100)
+	n := NativeBackend{
+		focus:         map[string]domain.FocusState{"secondary": {LeftAt: &left}},
+		lastDesktopAt: now,
+	}
+	if n.updateComputerUsePause(false, now) {
+		t.Fatal("an idle desktop must not pause focus")
+	}
+	if !n.updateComputerUsePause(true, now) || len(n.focus) != 0 || !n.lastDesktopAt.IsZero() || n.paused {
+		t.Fatal("session start must reset the focus delay and preserve the manual pause")
+	}
+	if !n.updateComputerUsePause(false, now.Add(computerUseEndGrace-time.Millisecond)) {
+		t.Fatal("a brief gap in the indicator must not resume focus")
+	}
+	lastSeen := now.Add(computerUseEndGrace)
+	if !n.updateComputerUsePause(true, lastSeen) || !n.updateComputerUsePause(false, lastSeen.Add(computerUseEndGrace-time.Millisecond)) {
+		t.Fatal("a returning indicator must renew the grace period")
+	}
+	n.paused = true
+	if n.updateComputerUsePause(false, lastSeen.Add(computerUseEndGrace)) || !n.paused || !n.lastDesktopAt.IsZero() {
+		t.Fatal("a stable end must release only automatic pause and require a fresh capture")
+	}
+}
+
 func TestFocusCaptureFailureAndRecovery(t *testing.T) {
 	now := time.Now()
 	left := int64(100)

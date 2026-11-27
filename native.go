@@ -50,6 +50,7 @@ type NativeBackend struct {
 	lastDesktop     desktop.DesktopState
 	lastDesktopAt   time.Time
 	focusCaptureErr string
+	lastComputerUse time.Time
 }
 
 func newHardwareBackend(writes bool) (*NativeBackend, error) {

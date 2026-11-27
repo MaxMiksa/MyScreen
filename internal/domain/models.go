@@ -51,14 +51,15 @@ type DisplayState struct {
 }
 
 type Snapshot struct {
-	Displays       []DisplayState
-	Settings       Settings
-	FocusPaused    bool
-	Source         string
-	Error          *string
-	Warning        *string
-	SystemLanguage *string
-	SolarTimes     *SolarTimes `json:",omitempty"`
+	Displays                 []DisplayState
+	Settings                 Settings
+	FocusPaused              bool
+	FocusPausedByComputerUse bool `json:",omitempty"`
+	Source                   string
+	Error                    *string
+	Warning                  *string
+	SystemLanguage           *string
+	SolarTimes               *SolarTimes `json:",omitempty"`
 }
 
 type Request struct {
