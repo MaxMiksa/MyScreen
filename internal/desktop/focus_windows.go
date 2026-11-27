@@ -5,6 +5,7 @@ package desktop
 import (
 	"errors"
 	"math"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -20,6 +21,8 @@ var (
 	focusGetClassNameW   = u32.NewProc("GetClassNameW")
 	focusIsZoomed        = u32.NewProc("IsZoomed")
 	focusGetWindowRect   = u32.NewProc("GetWindowRect")
+	focusGetExStyle      = u32.NewProc("GetWindowLongW")
+	focusGetWindowPID    = u32.NewProc("GetWindowThreadProcessId")
 
 	enumerations      sync.Map
 	enumerationID     atomic.Uint64
@@ -31,6 +34,46 @@ type enumeration struct {
 	displays []Display
 	occupied map[string]bool
 	err      error
+}
+
+const (
+	// Click-through, layered tool windows that cannot activate (e.g. Computer
+	// Use's cursor effects) are not applications occupying the screen.
+	focusPassiveOverlay = uint32(exOverlay)
+	// The Windows Snipping Tool selection layer is a topmost XAML tool window
+	// without a redirection bitmap. Its normal editor is not a selection layer.
+	focusSnippingOverlay = 0x00000008 | 0x00000080 | 0x00200000
+)
+
+func isTransientFocusOverlay(class string, style uint32, exe func() string) bool {
+	return style&focusPassiveOverlay == focusPassiveOverlay ||
+		(class == "XamlWindow" && style&focusSnippingOverlay == focusSnippingOverlay &&
+			strings.EqualFold(exe(), "SnippingTool.exe"))
+}
+
+func focusWindowExe(hwnd uintptr) string {
+	var pid uint32
+	if r, _, _ := focusGetWindowPID.Call(hwnd, uintptr(unsafe.Pointer(&pid))); r == 0 || pid == 0 {
+		return ""
+	}
+	h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, pid)
+	if err != nil {
+		return ""
+	}
+	defer windows.CloseHandle(h)
+	var buf [1024]uint16
+	n := uint32(len(buf))
+	if err := windows.QueryFullProcessImageName(h, 0, &buf[0], &n); err != nil {
+		return ""
+	}
+	return filepath.Base(windows.UTF16ToString(buf[:n]))
+}
+
+func markFocusOccupancy(e *enumeration, d Display, hwnd uintptr, class string) {
+	style, _, _ := focusGetExStyle.Call(hwnd, ^uintptr(19)) // GWL_EXSTYLE (-20), a 32-bit value.
+	if !isTransientFocusOverlay(class, uint32(style), func() string { return focusWindowExe(hwnd) }) {
+		e.occupied[d.Display] = true
+	}
 }
 
 func enumMonitor(handle, dc, rect, token uintptr) uintptr {
@@ -130,7 +173,8 @@ func enumOccupancy(hwnd, token uintptr) uintptr {
 	if n == 0 {
 		return 1
 	}
-	switch windows.UTF16ToString(class[:]) {
+	className := windows.UTF16ToString(class[:n])
+	switch className {
 	case "Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd", "MyScreen.Desktop.Native":
 		return 1
 	}
@@ -147,7 +191,7 @@ func enumOccupancy(hwnd, token uintptr) uintptr {
 		if h != 0 && boolCall(getMonitorInfo, h, uintptr(unsafe.Pointer(&mi))) == nil {
 			for _, d := range e.displays {
 				if !d.Primary && strings.EqualFold(d.Display, windows.UTF16ToString(mi.Device[:])) {
-					e.occupied[d.Display] = true
+					markFocusOccupancy(e, d, hwnd, className)
 				}
 			}
 		}
@@ -160,7 +204,7 @@ func enumOccupancy(hwnd, token uintptr) uintptr {
 	}
 	for _, d := range e.displays {
 		if !d.Primary && matchesFullscreen(bounds, d.Bounds) {
-			e.occupied[d.Display] = true
+			markFocusOccupancy(e, d, hwnd, className)
 		}
 	}
 	return 1

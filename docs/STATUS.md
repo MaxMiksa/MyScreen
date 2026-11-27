@@ -2,6 +2,8 @@
 
 ## 一、当前项目各功能的完成状态
 
+**副屏专注**：忽略 Computer Use 光标提示等鼠标穿透层，以及 Windows 截图选区层；真正的全屏／最大化应用仍按设置唤醒副屏。窗口分类回归测试通过，正式包已在本机运行，并核对了 Start11 入口、亮度色温与专注设置。实体副屏上的原始操作仍待复测。
+
 **公开下载**：[MyScreen Windows x64 免安装版](https://github.com/MaxMiksa/MyScreen/releases/latest)包含程序和许可证，不包含 WebView2。正式构建与检查通过；从 ZIP 解压部署并验证面板、原有计划与专注、唯一自启均正常。旧 Go 配置留作回退。
 
 **窗口快捷键**已部署至 `20261118-145620-787`。在 Windows 桌面模拟两种松键顺序，`Win + W` 均可开关窗口且不弹出开始菜单，单按 `Win` 仍可打开开始菜单。自定义组合、长按与禁用见 `build/diagnostics/window-shortcut-20261118-input.json`。本次桌面验收及部署见 `build/diagnostics/window-shortcut-start-20261118-*`。

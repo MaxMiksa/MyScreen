@@ -151,6 +151,27 @@ func TestReadOnlyDesktopSnapshot(t *testing.T) {
 	}
 }
 
+func TestFocusOccupancyIgnoresTransientOverlays(t *testing.T) {
+	for _, tc := range []struct {
+		name, class, exe string
+		style            uint32
+		ignored          bool
+	}{
+		{"computer use cursor", "CodexComputerUseCursorOverlay", "", 0x080800a8, true},
+		{"snipping selection", "XamlWindow", "SnippingTool.exe", 0x00200188, true},
+		{"snipping editor", "XamlWindow", "SnippingTool.exe", 0x00200100, false},
+		{"another XAML window", "XamlWindow", "Application.exe", 0x00200188, false},
+		{"unidentified XAML window", "XamlWindow", "", 0x00200188, false},
+		{"interactive layered player", "Player", "", 0x08080088, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isTransientFocusOverlay(tc.class, tc.style, func() string { return tc.exe }); got != tc.ignored {
+				t.Fatalf("transient overlay = %v, want %v", got, tc.ignored)
+			}
+		})
+	}
+}
+
 func TestCloseDrainsShellWorkerWithoutShowingOSD(t *testing.T) {
 	c, err := New(nil)
 	if err != nil {
