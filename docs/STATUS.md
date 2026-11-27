@@ -4,7 +4,7 @@
 
 **副屏专注**：检测到 Computer Use 操作提示后，自动撤除遮罩；结束后按原延迟重新进入专注，不改亮度、色温或手动暂停。普通全屏／最大化窗口仍按专注设置处理。正式包已在本机运行；原生窗口对照验证了两种提示、短暂消失不恢复和重新计时，Start11 入口已核对。实体操作端到端未完成。
 
-**公开下载**：[MyScreen Windows x64 免安装版](https://github.com/MaxMiksa/MyScreen/releases/latest)包含程序和许可证，不包含 WebView2。正式构建与检查通过；从 ZIP 解压部署并验证面板、原有计划与专注、唯一自启均正常。旧 Go 配置留作回退。
+**公开下载**：[MyScreen v3.0.1 Windows x64 免安装版](https://github.com/MaxMiksa/MyScreen/releases/tag/v3.0.1)包含程序和许可证，不包含 WebView2。正式构建与检查通过，ZIP 解压后以模拟模式验证面板可打开；本机正式版的专注验证见上文。
 
 **窗口快捷键**已部署至 `20261118-145620-787`。在 Windows 桌面模拟两种松键顺序，`Win + W` 均可开关窗口且不弹出开始菜单，单按 `Win` 仍可打开开始菜单。自定义组合、长按与禁用见 `build/diagnostics/window-shortcut-20261118-input.json`。本次桌面验收及部署见 `build/diagnostics/window-shortcut-start-20261118-*`。
 
